@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Postventa - Área Técnica</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #1a365d;
+            color: #fff;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.3rem;
+        }
+
+        header p {
+            font-size: 0.95rem;
+            color: #cbd5e0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            flex: 1;
+        }
+
+        .search-box {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 500px;
+            padding: 0.8rem 1.2rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2b6cb0;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .card p {
+            color: #4a5568;
+            font-size: 0.9rem;
+            margin-bottom: 1.2rem;
+            line-height: 1.4;
+        }
+
+        .card a {
+            display: inline-block;
+            text-decoration: none;
+            background-color: #2b6cb0;
+            color: white;
+            padding: 0.6rem 1rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .card a:hover {
+            background-color: #2c5282;
+        }
+
+        footer {
+            background-color: #edf2f7;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.85rem;
+            color: #718096;
+            margin-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Portal de Postventa</h1>
+        <p>Acceso a herramientas y recursos para técnicos de servicio</p>
+    </header>
+
+    <div class="container">
+        <div class="search-box">
+            <input type="text" placeholder="Buscar manual, código de error o cliente...">
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div>
+                    <h3>Órdenes de Trabajo</h3>
+                    <p>Consulta, asignación y actualización de estado de servicios técnicos en campo.</p>
+                </div>
+                <a href="#">Ver Órdenes</a>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>Manuales Técnicos</h3>
+                    <p>Documentación, esquemas de despiece y guías de mantenimiento técnico.</p>
+                </div>
+                <a href="#">Consultar Manuales</a>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>Reportar Incidencia</h3>
+                    <p>Registro de garantías, repuestos requeridos y soporte de segundo nivel.</p>
+                </div>
+                <a href="#">Abrir Ticket</a>
+            </div>
+
+            <div class="card">
+                <div>
+                    <h3>Directorio de Contactos</h3>
+                    <p>Líneas directas con especialistas de soporte y coordinadores de zona.</p>
+                </div>
+                <a href="#">Ver Contactos</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 Portal de Servicio Técnico Postventa. Todos los derechos reservados.
+    </footer>
+
+</body>
+</html>
