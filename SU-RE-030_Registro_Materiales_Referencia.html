@@ -262,6 +262,76 @@
     font-family:'IBM Plex Sans';
   }
   .clear-btn:hover{border-color:var(--ink-soft); color:var(--ink);}
+  .new-btn{
+    background:var(--ink);
+    border:1px solid var(--ink);
+    border-radius:var(--radius);
+    padding:8px 14px;
+    font-size:13px;
+    font-weight:500;
+    color:#fff;
+    cursor:pointer;
+    font-family:'IBM Plex Sans';
+  }
+  .new-btn:hover{background:var(--accent); border-color:var(--accent);}
+
+  /* ---------- New record modal ---------- */
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(28,43,51,.45);
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    z-index:50;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--card);
+    max-width:680px;
+    width:100%;
+    border-radius:4px;
+    box-shadow:0 10px 30px rgba(0,0,0,.2);
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 20px; border-bottom:1px solid var(--line);
+  }
+  .modal-head h2{font-size:17px; margin:0;}
+  .modal-close{background:none; border:none; font-size:16px; cursor:pointer; color:var(--ink-soft);}
+  .modal-close:hover{color:var(--ink);}
+  .modal-body{padding:18px 20px;}
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px 16px;
+  }
+  .form-grid label{
+    display:flex; flex-direction:column; gap:4px;
+    font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;
+  }
+  .form-grid label.span2{grid-column:1/-1;}
+  .form-grid input, .form-grid select, .form-grid textarea{
+    font-family:'IBM Plex Sans';
+    font-size:14px;
+    color:var(--ink);
+    text-transform:none;
+    letter-spacing:normal;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:#fff;
+  }
+  .form-grid textarea{resize:vertical;}
+  .modal-err{color:var(--vencido); font-size:13px; margin-top:10px; display:none;}
+  .modal-foot{
+    display:flex; justify-content:flex-end; gap:10px;
+    padding:14px 20px; border-top:1px solid var(--line);
+  }
+  @media (max-width:600px){
+    .form-grid{grid-template-columns:1fr;}
+  }
 
   /* ---------- Tabs ---------- */
   .tabs{
@@ -553,12 +623,57 @@
     <select id="f-ubicacion"><option value="">Todas las ubicaciones</option></select>
     <select id="f-estado"><option value="">Todos los estados</option></select>
     <button class="clear-btn" id="clear">Limpiar filtros</button>
+    <button class="new-btn" id="open-new">+ Nuevo registro</button>
     <span class="result-count" id="result-count"></span>
   </div>
 
   <div class="tabs">
     <button class="tab-btn" data-tab="activos">Activos <span class="count" id="count-activos"></span></button>
     <button class="tab-btn" data-tab="obsoletos">Obsoletos (dados de baja) <span class="count" id="count-obsoletos"></span></button>
+  </div>
+
+  <div class="modal-overlay" id="new-modal-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Nuevo registro</h2>
+        <button class="modal-close" id="close-new">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <label>Código * <input type="text" id="f-codigo" placeholder="SU-MR-061"></label>
+          <label>Nombre * <input type="text" id="f-nombre" placeholder="Ej: Termómetro digital"></label>
+          <label>Tipo
+            <select id="f-new-tipo">
+              <option value="Equipo de Referencia">Equipo de Referencia</option>
+              <option value="MRC">MRC</option>
+              <option value="Accesorio/ Consumible">Accesorio/ Consumible</option>
+            </select>
+          </label>
+          <label>Equipo / uso asociado <input type="text" id="f-equipo" placeholder="HPLC, GC, UV…"></label>
+          <label>N° serie o lote <input type="text" id="f-serie"></label>
+          <label>Marca <input type="text" id="f-marca"></label>
+          <label>Presentación <input type="text" id="f-presentacion"></label>
+          <label>N° de certificado <input type="text" id="f-certificado" placeholder="Sí / No / N°..."></label>
+          <label>Fecha recepción / calibración <input type="date" id="f-fecha-recepcion"></label>
+          <label>Vencimiento <input type="date" id="f-vencimiento"></label>
+          <label>Alcance acreditado <input type="text" id="f-alcance" placeholder="Sí / No"></label>
+          <label>Ubicación
+            <select id="f-ubicacion-new">
+              <option value="Gaveta">Gaveta</option>
+              <option value="Heladera">Heladera</option>
+              <option value="Laboratorio">Laboratorio</option>
+              <option value="Oficina">Oficina</option>
+            </select>
+          </label>
+          <label class="span2">Observación <textarea id="f-observacion" rows="2"></textarea></label>
+        </div>
+        <div class="modal-err" id="new-err"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="clear-btn" id="cancel-new">Cancelar</button>
+        <button class="new-btn" id="submit-new">Guardar registro</button>
+      </div>
+    </div>
   </div>
 
   <div class="list">
@@ -795,6 +910,69 @@ function setupFiltersOnce(){
     });
   });
   document.querySelector('.tab-btn[data-tab="activos"]').classList.add("active");
+
+  // ---------- nuevo registro ----------
+  const overlay = document.getElementById("new-modal-overlay");
+  const openBtn = document.getElementById("open-new");
+  const closeBtn = document.getElementById("close-new");
+  const cancelBtn = document.getElementById("cancel-new");
+  const submitBtn = document.getElementById("submit-new");
+  const newErr = document.getElementById("new-err");
+
+  function openModal(){
+    ["f-codigo","f-nombre","f-equipo","f-serie","f-marca","f-presentacion","f-certificado",
+     "f-fecha-recepcion","f-vencimiento","f-alcance","f-observacion"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("f-new-tipo").value = "Equipo de Referencia";
+    document.getElementById("f-ubicacion-new").value = "Gaveta";
+    newErr.style.display = "none";
+    overlay.classList.add("open");
+  }
+  function closeModal(){ overlay.classList.remove("open"); }
+
+  openBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  cancelBtn.addEventListener("click", closeModal);
+  overlay.addEventListener("click", e => { if(e.target === overlay) closeModal(); });
+
+  submitBtn.addEventListener("click", async () => {
+    const codigo = document.getElementById("f-codigo").value.trim();
+    const nombre = document.getElementById("f-nombre").value.trim();
+    if(!codigo || !nombre){
+      newErr.textContent = "Código y Nombre son obligatorios.";
+      newErr.style.display = "block";
+      return;
+    }
+    const nextN = DATA.reduce((max, d) => Math.max(max, Number(d.n) || 0), 0) + 1;
+    const payload = {
+      action: "agregar",
+      n: nextN,
+      codigo,
+      nombre,
+      tipo: document.getElementById("f-new-tipo").value,
+      equipo: document.getElementById("f-equipo").value.trim(),
+      serie_lote: document.getElementById("f-serie").value.trim(),
+      marca: document.getElementById("f-marca").value.trim(),
+      presentacion: document.getElementById("f-presentacion").value.trim(),
+      certificado: document.getElementById("f-certificado").value.trim(),
+      fecha_recepcion: document.getElementById("f-fecha-recepcion").value || null,
+      vencimiento: document.getElementById("f-vencimiento").value || null,
+      alcance: document.getElementById("f-alcance").value.trim(),
+      ubicacion: document.getElementById("f-ubicacion-new").value,
+      observacion: document.getElementById("f-observacion").value.trim()
+    };
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Guardando…";
+    try{
+      await postAction(payload);
+      closeModal();
+      await loadData();
+    }catch(err){
+      newErr.textContent = "No se pudo guardar: " + err.message;
+      newErr.style.display = "block";
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Guardar registro";
+  });
 }
 function syncActiveStat(){
   summaryEl.querySelectorAll(".stat").forEach(s => s.classList.remove("active"));
