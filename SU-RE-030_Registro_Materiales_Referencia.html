@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SU-RE-030 · Registro de Materiales de Referencia Certificados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C2B33;
+    --ink-soft:#4B5A61;
+    --paper:#EEF1EC;
+    --card:#FFFFFF;
+    --line:#D9DED6;
+    --line-soft:#E6E9E2;
+    --accent:#3A6F76;
+    --accent-soft:#E4EEEE;
+    --vencido:#B33F35;
+    --vencido-bg:#F7E6E3;
+    --porvencer:#A9761E;
+    --porvencer-bg:#F6EDD9;
+    --vigente:#3F7D52;
+    --vigente-bg:#E3EEE4;
+    --neutral:#767C74;
+    --neutral-bg:#E9EBE6;
+    --obsoleto:#6B5E8C;
+    --obsoleto-bg:#EAE6F0;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',-apple-system,sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  a{color:var(--accent);}
+
+  /* ---------- Letterhead ---------- */
+  .letterhead{
+    max-width:1120px;
+    margin:0 auto;
+    padding:28px 24px 0;
+  }
+  .letterhead-inner{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:24px;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .lh-title-block{max-width:620px;}
+  .lh-eyebrow{
+    font-family:'IBM Plex Mono';
+    font-size:12px;
+    letter-spacing:.03em;
+    color:var(--accent);
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .conn-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--neutral);
+    display:inline-block;
+  }
+  .conn-dot.ok{background:var(--vigente);}
+  .conn-dot.err{background:var(--vencido);}
+  .lh-title{
+    font-size:28px;
+    font-weight:600;
+    letter-spacing:-.01em;
+    margin:0 0 6px;
+  }
+  .lh-sub{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    margin:0;
+  }
+  .lh-doc-table{
+    border-collapse:collapse;
+    font-family:'IBM Plex Mono';
+    font-size:12.5px;
+    flex-shrink:0;
+  }
+  .lh-doc-table td{
+    border:1px solid var(--line);
+    padding:5px 10px;
+    white-space:nowrap;
+  }
+  .lh-doc-table td.k{
+    background:var(--ink);
+    color:#fff;
+    font-weight:500;
+  }
+
+  /* ---------- Settings panel ---------- */
+  .settings{
+    max-width:1120px;
+    margin:16px auto 0;
+    padding:16px 20px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+  }
+  .settings h2{font-size:15px; margin:0 0 6px;}
+  .settings p{font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;}
+  .settings-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .settings input[type="text"]{
+    flex:1 1 360px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    font-family:'IBM Plex Mono';
+    font-size:13px;
+  }
+  .settings button{
+    padding:9px 16px;
+    border:none;
+    border-radius:var(--radius);
+    background:var(--ink);
+    color:#fff;
+    font-family:'IBM Plex Sans';
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .settings button:hover{background:var(--accent);}
+  .settings .err-msg{color:var(--vencido); font-size:13px; margin-top:8px; display:none;}
+
+  .status-bar{
+    max-width:1120px;
+    margin:0 auto;
+    padding:10px 24px 0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .status-bar button{
+    background:none; border:1px solid var(--line); border-radius:var(--radius);
+    padding:5px 10px; font-size:12px; cursor:pointer; color:var(--ink-soft);
+    font-family:'IBM Plex Sans';
+  }
+  .status-bar button:hover{color:var(--ink); border-color:var(--ink-soft);}
+  .status-bar a.cfg-link{cursor:pointer; text-decoration:underline;}
+
+  /* ---------- Summary ---------- */
+  .summary{
+    max-width:1120px;
+    margin:0 auto;
+    padding:20px 24px 4px;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+  }
+  .stat{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-left:3px solid var(--ink);
+    padding:12px 14px;
+    cursor:pointer;
+    transition:border-color .12s ease, transform .12s ease;
+  }
+  .stat:hover{transform:translateY(-1px);}
+  .stat.active{border-left-color:var(--accent); background:var(--accent-soft);}
+  .stat .n{
+    font-family:'IBM Plex Mono';
+    font-size:24px;
+    font-weight:600;
+    display:block;
+    line-height:1.1;
+  }
+  .stat .l{
+    font-size:12px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:.02em;
+  }
+  .stat[data-estado="VENCIDO"] .n{color:var(--vencido);}
+  .stat[data-estado="POR VENCER"] .n{color:var(--porvencer);}
+  .stat[data-estado="VIGENTE"] .n{color:var(--vigente);}
+  .stat[data-estado="__otros"] .n{color:var(--neutral);}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    max-width:1120px;
+    margin:0 auto;
+    padding:16px 24px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .controls input[type="search"]{
+    flex:1 1 240px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    font-family:'IBM Plex Sans';
+    font-size:14px;
+    background:var(--card);
+    color:var(--ink);
+  }
+  .controls select{
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--card);
+    font-family:'IBM Plex Sans';
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .controls input:focus, .controls select:focus{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+  .result-count{
+    font-family:'IBM Plex Mono';
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-left:auto;
+    white-space:nowrap;
+  }
+  .clear-btn{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:8px 12px;
+    font-size:13px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    font-family:'IBM Plex Sans';
+  }
+  .clear-btn:hover{border-color:var(--ink-soft); color:var(--ink);}
+
+  /* ---------- Tabs ---------- */
+  .tabs{
+    max-width:1120px;
+    margin:0 auto;
+    padding:0 24px;
+    display:flex;
+    gap:4px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    background:none;
+    border:none;
+    border-bottom:2px solid transparent;
+    padding:10px 4px;
+    margin-right:22px;
+    font-family:'IBM Plex Sans';
+    font-size:14px;
+    font-weight:500;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .tab-btn .count{
+    font-family:'IBM Plex Mono';
+    font-size:11.5px;
+    background:var(--neutral-bg);
+    color:var(--ink-soft);
+    padding:1px 7px;
+    border-radius:20px;
+    margin-left:6px;
+  }
+  .tab-btn.active{color:var(--ink); border-bottom-color:var(--accent);}
+  .tab-btn.active .count{background:var(--accent-soft); color:var(--accent);}
+
+  /* ---------- Action buttons (baja / reactivar) ---------- */
+  .detail-actions{
+    grid-column:1/-1;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding-top:6px;
+    margin-top:4px;
+    border-top:1px solid var(--line-soft);
+  }
+  .action-btn{
+    font-family:'IBM Plex Sans';
+    font-size:12.5px;
+    font-weight:500;
+    padding:7px 12px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:var(--card);
+  }
+  .action-btn.baja{color:var(--vencido); border-color:var(--vencido);}
+  .action-btn.baja:hover{background:var(--vencido-bg);}
+  .action-btn.reactivar{color:var(--vigente); border-color:var(--vigente);}
+  .action-btn.reactivar:hover{background:var(--vigente-bg);}
+  .action-btn:disabled{opacity:.5; cursor:default;}
+  .baja-info{
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .baja-info b{color:var(--obsoleto);}
+
+  /* ---------- List ---------- */
+  .list{
+    max-width:1120px;
+    margin:0 auto;
+    padding:0 24px 60px;
+  }
+  .col-headers{
+    display:grid;
+    grid-template-columns:104px 1.6fr 1fr 0.9fr 90px 70px 20px;
+    gap:12px;
+    padding:0 16px 8px;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    border-bottom:1px solid var(--line);
+  }
+  .col-headers span{cursor:pointer; user-select:none;}
+  .col-headers span:hover{color:var(--ink);}
+  .col-headers span.sorted::after{content:" ▾"; font-size:10px;}
+  .col-headers span.sorted.asc::after{content:" ▴";}
+
+  .item{
+    background:var(--card);
+    border:1px solid var(--line-soft);
+    border-top:none;
+    cursor:pointer;
+  }
+  .item:first-of-type{border-top:1px solid var(--line-soft);}
+  .item + .item{margin-top:-1px;}
+
+  .item-row{
+    display:grid;
+    grid-template-columns:104px 1.6fr 1fr 0.9fr 90px 70px 20px;
+    gap:12px;
+    align-items:center;
+    padding:12px 16px;
+  }
+  .item-row .codigo{
+    font-family:'IBM Plex Mono';
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .item-row .nombre{
+    font-weight:500;
+    font-size:14.5px;
+  }
+  .item-row .tipo-tag{
+    font-size:11px;
+    color:var(--ink-soft);
+    display:block;
+    margin-top:2px;
+    font-weight:400;
+  }
+  .item-row .equipo{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .item-row .ubicacion{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .badge{
+    font-family:'IBM Plex Mono';
+    font-size:11px;
+    font-weight:600;
+    padding:4px 8px;
+    border-radius:20px;
+    text-align:center;
+    letter-spacing:.01em;
+    white-space:nowrap;
+  }
+  .badge.VENCIDO{color:var(--vencido); background:var(--vencido-bg);}
+  .badge.POR-VENCER{color:var(--porvencer); background:var(--porvencer-bg);}
+  .badge.VIGENTE{color:var(--vigente); background:var(--vigente-bg);}
+  .badge.otros{color:var(--neutral); background:var(--neutral-bg);}
+  .badge.OBSOLETO{color:var(--obsoleto); background:var(--obsoleto-bg);}
+  .dias{
+    font-family:'IBM Plex Mono';
+    font-size:12.5px;
+    text-align:right;
+    color:var(--ink-soft);
+  }
+  .dias.neg{color:var(--vencido);}
+  .chev{
+    font-size:12px;
+    color:var(--ink-soft);
+    transition:transform .15s ease;
+    text-align:center;
+  }
+  .item.open .chev{transform:rotate(90deg);}
+
+  .item-detail{
+    display:none;
+    padding:2px 16px 18px 120px;
+    border-top:1px dashed var(--line);
+    margin-top:-1px;
+  }
+  .item.open .item-detail{display:block;}
+  .detail-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px 22px;
+    padding-top:14px;
+  }
+  .detail-field .k{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    margin-bottom:2px;
+  }
+  .detail-field .v{
+    font-size:13.5px;
+  }
+  .detail-field .v.mono{font-family:'IBM Plex Mono'; font-size:12.5px;}
+  .detail-field.obs{grid-column:1/-1;}
+  .detail-field.obs .v{
+    background:var(--accent-soft);
+    border-left:2px solid var(--accent);
+    padding:8px 10px;
+    font-size:13px;
+  }
+
+  .empty-state, .loading-state, .error-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+  }
+  .empty-state .big, .loading-state .big, .error-state .big{font-size:32px; margin-bottom:8px;}
+  .error-state{color:var(--vencido);}
+  .error-state button{
+    margin-top:14px;
+    padding:8px 16px;
+    border:1px solid var(--vencido);
+    color:var(--vencido);
+    background:#fff;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-family:'IBM Plex Sans';
+  }
+
+  footer{
+    max-width:1120px;
+    margin:0 auto;
+    padding:0 24px 40px;
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+    border-top:1px solid var(--line);
+    padding-top:14px;
+  }
+
+  @media (max-width:760px){
+    .letterhead-inner{flex-direction:column; align-items:flex-start;}
+    .summary{grid-template-columns:repeat(2,1fr);}
+    .col-headers{display:none;}
+    .item-row{
+      grid-template-columns:1fr auto;
+      grid-template-areas:
+        "codigo chev"
+        "nombre nombre"
+        "meta badge";
+      row-gap:6px;
+    }
+    .item-row .codigo{grid-area:codigo;}
+    .item-row .chev{grid-area:chev;}
+    .item-row .nombre{grid-area:nombre;}
+    .item-row .equipo{grid-area:meta;}
+    .item-row .ubicacion{display:none;}
+    .item-row .badge{grid-area:badge; justify-self:end;}
+    .item-row .dias{display:none;}
+    .item-detail{padding-left:16px;}
+    .detail-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="lh-title-block">
+      <div class="lh-eyebrow"><span class="conn-dot" id="conn-dot"></span> SUMI S.A. · CONTROL DE CALIDAD · <span id="conn-text">sin conectar</span></div>
+      <h1 class="lh-title">Registro de estándares y materiales de referencia certificados</h1>
+      <p class="lh-sub">Trazabilidad de equipos de referencia, MRC y accesorios calibrados utilizados en servicio técnico y laboratorio.</p>
+    </div>
+    <table class="lh-doc-table">
+      <tr><td class="k">Código</td><td id="doc-codigo">—</td></tr>
+      <tr><td class="k">Vigencia</td><td id="doc-vigencia">—</td></tr>
+      <tr><td class="k">Versión</td><td id="doc-version">—</td></tr>
+      <tr><td class="k">Estado hoy</td><td id="doc-hoy">—</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="settings" id="settings" style="display:none;">
+  <h2>Conectar con Google Sheets</h2>
+  <p>Pegá la URL de la Web App de Apps Script publicada sobre tu planilla (termina en <span class="mono">/exec</span>). Se guarda en este navegador.</p>
+  <div class="settings-row">
+    <input type="text" id="api-url-input" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
+    <button id="save-url">Conectar</button>
+  </div>
+  <div class="err-msg" id="settings-err"></div>
+</div>
+
+<div class="status-bar" id="status-bar" style="display:none;">
+  <span id="status-text"></span>
+  <button id="refresh-btn">↻ Actualizar</button>
+  <a class="cfg-link" id="reconfig-link">Cambiar conexión</a>
+</div>
+
+<div id="app-body" style="display:none;">
+  <div class="summary" id="summary"></div>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Buscar por código, nombre, equipo o N° de serie…">
+    <select id="f-tipo"><option value="">Todos los tipos</option></select>
+    <select id="f-ubicacion"><option value="">Todas las ubicaciones</option></select>
+    <select id="f-estado"><option value="">Todos los estados</option></select>
+    <button class="clear-btn" id="clear">Limpiar filtros</button>
+    <span class="result-count" id="result-count"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn" data-tab="activos">Activos <span class="count" id="count-activos"></span></button>
+    <button class="tab-btn" data-tab="obsoletos">Obsoletos (dados de baja) <span class="count" id="count-obsoletos"></span></button>
+  </div>
+
+  <div class="list">
+    <div class="col-headers">
+      <span data-sort="codigo">Código</span>
+      <span data-sort="nombre">Nombre / tipo</span>
+      <span data-sort="equipo">Equipo asociado</span>
+      <span data-sort="ubicacion">Ubicación</span>
+      <span data-sort="estado" class="sorted asc">Estado</span>
+      <span data-sort="dias_restantes" style="text-align:right">Días</span>
+      <span></span>
+    </div>
+    <div id="items"></div>
+    <div class="empty-state" id="empty" style="display:none;">
+      <div class="big">Sin resultados</div>
+      <div>Probá con otro término de búsqueda o quitá algún filtro.</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>SU-RE-030 · Listado de estándares y materiales de referencia certificados — versión web</span>
+    <span id="foot-updated">Conectado a Google Sheets</span>
+  </footer>
+</div>
+
+<div class="loading-state" id="loading" style="display:none;">
+  <div class="big">⏳</div>
+  <div>Cargando datos desde Google Sheets…</div>
+</div>
+
+<div class="error-state" id="error-panel" style="display:none;">
+  <div class="big">⚠</div>
+  <div id="error-msg">No se pudo conectar con la planilla.</div>
+  <button id="retry-btn">Reintentar</button>
+</div>
+
+<script>
+const DOC_INFO = {
+  codigo: "SU-RE-030",
+  vigencia: "2026-09-02",
+  version: 8
+};
+const ESTADO_ORDER = { "VENCIDO":0, "POR VENCER":1, "VIGENTE":2, "SIN DATOS":3, "N/A":4 };
+const LIMITE_POR_VENCER = 60; // días
+const CONFIG_KEY = "sumi_su_re_030_apiurl_v1";
+
+let DATA = [];
+let API_URL = localStorage.getItem(CONFIG_KEY) || "";
+
+function parseISO(s){
+  if(!s) return null;
+  const str = String(s).slice(0,10);
+  const p = str.split("-");
+  if(p.length !== 3) return null;
+  const d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  return isNaN(d) ? null : d;
+}
+function fmtDate(s){
+  const d = parseISO(s);
+  if(!d) return "—";
+  return d.toLocaleDateString('es-PY', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function daysBetween(a,b){ return Math.round((a-b)/86400000); }
+function toBool(v){ return v === true || v === "TRUE" || v === "true" || v === "Sí" || v === "SI" || v === 1; }
+
+const today = new Date();
+today.setHours(0,0,0,0);
+
+function itemKey(item){ return item.codigo + "__" + item.n; }
+function badgeClass(estado){
+  if(estado === "VENCIDO") return "VENCIDO";
+  if(estado === "POR VENCER") return "POR-VENCER";
+  if(estado === "VIGENTE") return "VIGENTE";
+  return "otros";
+}
+
+function normalize(rows){
+  return rows.map(item => {
+    const venc = parseISO(item.vencimiento);
+    let estado_live = item.estado || "SIN DATOS";
+    let dias_live = null;
+    if(venc){
+      dias_live = daysBetween(venc, today);
+      estado_live = dias_live < 0 ? "VENCIDO" : (dias_live <= LIMITE_POR_VENCER ? "POR VENCER" : "VIGENTE");
+    } else if(!estado_live){
+      estado_live = "SIN DATOS";
+    }
+    return { ...item, baja: toBool(item.baja), estado_live, dias_live };
+  });
+}
+
+// ---------- connection setup ----------
+const settingsEl = document.getElementById("settings");
+const statusBarEl = document.getElementById("status-bar");
+const appBodyEl = document.getElementById("app-body");
+const loadingEl = document.getElementById("loading");
+const errorPanelEl = document.getElementById("error-panel");
+const connDot = document.getElementById("conn-dot");
+const connText = document.getElementById("conn-text");
+
+document.getElementById("save-url").addEventListener("click", () => {
+  const val = document.getElementById("api-url-input").value.trim();
+  const errEl = document.getElementById("settings-err");
+  if(!val.startsWith("https://script.google.com/")){
+    errEl.textContent = "Eso no parece una URL de Apps Script (debe empezar con https://script.google.com/...).";
+    errEl.style.display = "block";
+    return;
+  }
+  errEl.style.display = "none";
+  API_URL = val;
+  localStorage.setItem(CONFIG_KEY, API_URL);
+  settingsEl.style.display = "none";
+  init();
+});
+document.getElementById("reconfig-link").addEventListener("click", () => {
+  document.getElementById("api-url-input").value = API_URL;
+  settingsEl.style.display = "block";
+  statusBarEl.style.display = "none";
+  appBodyEl.style.display = "none";
+});
+document.getElementById("refresh-btn").addEventListener("click", () => loadData());
+document.getElementById("retry-btn").addEventListener("click", () => loadData());
+
+async function loadData(){
+  loadingEl.style.display = "block";
+  errorPanelEl.style.display = "none";
+  appBodyEl.style.display = "none";
+  statusBarEl.style.display = "none";
+  connDot.className = "conn-dot";
+  connText.textContent = "conectando…";
+  try{
+    const res = await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error || "Respuesta inválida de la planilla.");
+    DATA = normalize(json.rows);
+    loadingEl.style.display = "none";
+    appBodyEl.style.display = "block";
+    statusBarEl.style.display = "flex";
+    connDot.className = "conn-dot ok";
+    connText.textContent = "conectado a Google Sheets";
+    document.getElementById("status-text").textContent = DATA.length + " registros cargados · " + new Date().toLocaleTimeString('es-PY');
+    setupFiltersOnce();
+    render();
+  }catch(err){
+    loadingEl.style.display = "none";
+    errorPanelEl.style.display = "block";
+    statusBarEl.style.display = "flex";
+    connDot.className = "conn-dot err";
+    connText.textContent = "sin conexión";
+    document.getElementById("error-msg").textContent =
+      "No se pudo cargar la planilla (" + err.message + "). Verificá la URL de conexión y que la Web App esté publicada con acceso 'Cualquier usuario'.";
+  }
+}
+
+async function postAction(payload){
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  });
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || "La planilla rechazó el cambio.");
+  return json;
+}
+
+function init(){
+  if(!API_URL){
+    settingsEl.style.display = "block";
+    return;
+  }
+  settingsEl.style.display = "none";
+  document.getElementById("doc-codigo").textContent = DOC_INFO.codigo;
+  document.getElementById("doc-vigencia").textContent = fmtDate(DOC_INFO.vigencia);
+  document.getElementById("doc-version").textContent = DOC_INFO.version;
+  document.getElementById("doc-hoy").textContent = today.toLocaleDateString('es-PY', {day:'2-digit', month:'2-digit', year:'numeric'});
+  loadData();
+}
+
+// ---------- filters / summary / list (populated once data is loaded) ----------
+const summaryEl = document.getElementById("summary");
+const state = { search:"", tipo:"", ubicacion:"", estado:"", sortField:"estado", sortAsc:true, otrosOnly:false, openCodes:new Set(), tab:"activos" };
+let filtersReady = false;
+
+function uniqueSorted(field){
+  return [...new Set(DATA.map(d => d[field]).filter(Boolean))].sort();
+}
+function fillSelect(id, values){
+  const sel = document.getElementById(id);
+  sel.innerHTML = sel.querySelector('option').outerHTML;
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+function setupFiltersOnce(){
+  fillSelect("f-tipo", uniqueSorted("tipo"));
+  fillSelect("f-ubicacion", uniqueSorted("ubicacion"));
+  fillSelect("f-estado", ["VENCIDO","POR VENCER","VIGENTE","SIN DATOS","N/A"]);
+  if(filtersReady) return;
+  filtersReady = true;
+
+  document.getElementById("search").addEventListener("input", e => { state.search = e.target.value.trim().toLowerCase(); render(); });
+  document.getElementById("f-tipo").addEventListener("change", e => { state.tipo = e.target.value; render(); });
+  document.getElementById("f-ubicacion").addEventListener("change", e => { state.ubicacion = e.target.value; render(); });
+  document.getElementById("f-estado").addEventListener("change", e => { state.estado = e.target.value; state.otrosOnly=false; syncActiveStat(); render(); });
+  document.getElementById("clear").addEventListener("click", () => {
+    state.search=""; state.tipo=""; state.ubicacion=""; state.estado=""; state.otrosOnly=false;
+    document.getElementById("search").value="";
+    document.getElementById("f-tipo").value="";
+    document.getElementById("f-ubicacion").value="";
+    document.getElementById("f-estado").value="";
+    syncActiveStat();
+    render();
+  });
+  document.querySelectorAll(".col-headers span[data-sort]").forEach(el => {
+    el.addEventListener("click", () => {
+      const field = el.dataset.sort;
+      if(state.sortField === field){ state.sortAsc = !state.sortAsc; }
+      else { state.sortField = field; state.sortAsc = true; }
+      document.querySelectorAll(".col-headers span").forEach(s => s.classList.remove("sorted","asc"));
+      el.classList.add("sorted");
+      if(state.sortAsc) el.classList.add("asc");
+      render();
+    });
+  });
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.tab = btn.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      render();
+    });
+  });
+  document.querySelector('.tab-btn[data-tab="activos"]').classList.add("active");
+}
+function syncActiveStat(){
+  summaryEl.querySelectorAll(".stat").forEach(s => s.classList.remove("active"));
+}
+
+function buildSummary(){
+  const counts = { VENCIDO:0, "POR VENCER":0, VIGENTE:0, __otros:0 };
+  DATA.filter(d => !d.baja).forEach(d => {
+    if(counts.hasOwnProperty(d.estado_live)) counts[d.estado_live]++;
+    else counts.__otros++;
+  });
+  const cards = [
+    {key:"__all", label:"Registros totales", n:DATA.length, estado:""},
+    {key:"VENCIDO", label:"Vencidos", n:counts.VENCIDO, estado:"VENCIDO"},
+    {key:"POR VENCER", label:"Por vencer (≤60 d)", n:counts["POR VENCER"], estado:"POR VENCER"},
+    {key:"VIGENTE", label:"Vigentes", n:counts.VIGENTE, estado:"VIGENTE"},
+    {key:"__otros", label:"Sin dato / N-A", n:counts.__otros, estado:"__otros"},
+  ];
+  summaryEl.innerHTML = cards.map(c => `
+    <div class="stat" data-key="${c.key}" data-estado="${c.estado}">
+      <span class="n">${c.n}</span>
+      <span class="l">${c.label}</span>
+    </div>`).join("");
+
+  summaryEl.querySelectorAll(".stat").forEach(el => {
+    el.addEventListener("click", () => {
+      const key = el.dataset.key;
+      const already = el.classList.contains("active");
+      summaryEl.querySelectorAll(".stat").forEach(s => s.classList.remove("active"));
+      const estadoSel = document.getElementById("f-estado");
+      if(already || key === "__all"){
+        estadoSel.value = "";
+      } else if(key === "__otros"){
+        estadoSel.value = "";
+        state.otrosOnly = true;
+        el.classList.add("active");
+        render();
+        return;
+      } else {
+        estadoSel.value = key;
+        el.classList.add("active");
+      }
+      state.otrosOnly = false;
+      render();
+    });
+  });
+}
+
+function matches(item){
+  if(state.tab === "activos" && item.baja) return false;
+  if(state.tab === "obsoletos" && !item.baja) return false;
+  if(state.otrosOnly){
+    if(item.estado_live === "VENCIDO" || item.estado_live === "POR VENCER" || item.estado_live === "VIGENTE") return false;
+  }
+  if(state.estado && item.estado_live !== state.estado) return false;
+  if(state.tipo && item.tipo !== state.tipo) return false;
+  if(state.ubicacion && item.ubicacion !== state.ubicacion) return false;
+  if(state.search){
+    const hay = [item.codigo, item.nombre, item.equipo, item.serie_lote, item.marca]
+      .filter(Boolean).join(" ").toLowerCase();
+    if(!hay.includes(state.search)) return false;
+  }
+  return true;
+}
+
+function sortItems(list){
+  const f = state.sortField;
+  const dir = state.sortAsc ? 1 : -1;
+  return list.slice().sort((a,b) => {
+    let av, bv;
+    if(f === "estado"){ av = ESTADO_ORDER[a.estado_live] ?? 9; bv = ESTADO_ORDER[b.estado_live] ?? 9; }
+    else if(f === "dias_restantes"){ av = a.dias_live ?? 99999; bv = b.dias_live ?? 99999; }
+    else { av = (a[f]||"").toString().toLowerCase(); bv = (b[f]||"").toString().toLowerCase(); }
+    if(av < bv) return -1*dir;
+    if(av > bv) return 1*dir;
+    return 0;
+  });
+}
+
+const itemsEl = document.getElementById("items");
+const emptyEl = document.getElementById("empty");
+const countEl = document.getElementById("result-count");
+
+function renderDetail(item){
+  const actions = item.baja
+    ? `<div class="detail-actions">
+         <span class="baja-info">Dado de baja el <b>${fmtDate(item.fecha_baja)}</b>${item.motivo_baja ? " — " + item.motivo_baja : ""}</span>
+         <button class="action-btn reactivar" data-action="reactivar" data-codigo="${item.codigo}" data-n="${item.n}">Reactivar</button>
+       </div>`
+    : `<div class="detail-actions">
+         <button class="action-btn baja" data-action="baja" data-codigo="${item.codigo}" data-n="${item.n}">Dar de baja (obsoleto)</button>
+       </div>`;
+  return `
+    <div class="detail-grid">
+      <div class="detail-field"><div class="k">N° serie / lote</div><div class="v mono">${item.serie_lote || "—"}</div></div>
+      <div class="detail-field"><div class="k">Marca</div><div class="v">${item.marca || "—"}</div></div>
+      <div class="detail-field"><div class="k">Presentación</div><div class="v">${item.presentacion || "—"}</div></div>
+      <div class="detail-field"><div class="k">N° de certificado</div><div class="v mono">${item.certificado || "—"}</div></div>
+      <div class="detail-field"><div class="k">Fecha recepción / calibración</div><div class="v mono">${fmtDate(item.fecha_recepcion)}</div></div>
+      <div class="detail-field"><div class="k">Vencimiento</div><div class="v mono">${fmtDate(item.vencimiento)}</div></div>
+      <div class="detail-field"><div class="k">Alcance acreditado</div><div class="v">${item.alcance || "—"}</div></div>
+      <div class="detail-field"><div class="k">Ubicación</div><div class="v">${item.ubicacion || "—"}</div></div>
+      <div class="detail-field"><div class="k">Tipo</div><div class="v">${item.tipo || "—"}</div></div>
+      ${item.observacion ? `<div class="detail-field obs"><div class="k">Observación</div><div class="v">${item.observacion}</div></div>` : ""}
+      ${actions}
+    </div>`;
+}
+
+function render(){
+  buildSummary();
+  if(state.estado){
+    const el = summaryEl.querySelector(`.stat[data-key="${state.estado}"]`);
+    if(el) el.classList.add("active");
+  } else if(state.otrosOnly){
+    const el = summaryEl.querySelector('.stat[data-key="__otros"]');
+    if(el) el.classList.add("active");
+  }
+
+  const filtered = sortItems(DATA.filter(matches));
+  countEl.textContent = filtered.length + " de " + DATA.length + " registros";
+
+  if(filtered.length === 0){
+    itemsEl.innerHTML = "";
+    emptyEl.style.display = "block";
+  } else {
+    emptyEl.style.display = "none";
+    itemsEl.innerHTML = filtered.map(item => {
+      const dias = item.dias_live;
+      const diasText = dias === null ? "—" : (dias < 0 ? dias : "+" + dias);
+      const rowKey = item.codigo + item.n;
+      const open = state.openCodes.has(rowKey) ? " open" : "";
+      const badgeHtml = item.baja
+        ? `<div class="badge OBSOLETO">OBSOLETO</div>`
+        : `<div class="badge ${badgeClass(item.estado_live)}">${item.estado_live}</div>`;
+      return `
+      <div class="item${open}" data-key="${rowKey}">
+        <div class="item-row">
+          <div class="codigo">${item.codigo}</div>
+          <div>
+            <div class="nombre">${item.nombre}</div>
+            <span class="tipo-tag">${item.tipo || ""}</span>
+          </div>
+          <div class="equipo">${item.equipo || "—"}</div>
+          <div class="ubicacion">${item.ubicacion || "—"}</div>
+          ${badgeHtml}
+          <div class="dias ${dias!==null && dias<0 ? 'neg':''}">${diasText}</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="item-detail">${renderDetail(item)}</div>
+      </div>`;
+    }).join("");
+
+    itemsEl.querySelectorAll(".item").forEach(el => {
+      el.addEventListener("click", (e) => {
+        if(e.target.closest(".action-btn")) return;
+        const key = el.dataset.key;
+        el.classList.toggle("open");
+        if(el.classList.contains("open")) state.openCodes.add(key);
+        else state.openCodes.delete(key);
+      });
+    });
+
+    itemsEl.querySelectorAll(".action-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const codigo = btn.dataset.codigo, n = btn.dataset.n;
+        const item = DATA.find(d => d.codigo === codigo && String(d.n) === String(n));
+        if(!item) return;
+        btn.disabled = true;
+        btn.textContent = "Guardando…";
+        try{
+          if(btn.dataset.action === "baja"){
+            const motivo = window.prompt("Motivo de la baja (opcional):", "") || "";
+            const fecha = today.toISOString().slice(0,10);
+            await postAction({ action:"baja", codigo, n, fecha, motivo: motivo.trim() });
+            item.baja = true; item.fecha_baja = fecha; item.motivo_baja = motivo.trim();
+          } else {
+            await postAction({ action:"reactivar", codigo, n });
+            item.baja = false; item.fecha_baja = null; item.motivo_baja = null;
+          }
+          render();
+        }catch(err){
+          alert("No se pudo guardar el cambio en la planilla: " + err.message);
+          btn.disabled = false;
+          btn.textContent = btn.dataset.action === "baja" ? "Dar de baja (obsoleto)" : "Reactivar";
+        }
+      });
+    });
+  }
+
+  document.getElementById("count-activos").textContent = DATA.filter(d => !d.baja).length;
+  document.getElementById("count-obsoletos").textContent = DATA.filter(d => d.baja).length;
+}
+
+init();
+</script>
+</body>
+</html>
