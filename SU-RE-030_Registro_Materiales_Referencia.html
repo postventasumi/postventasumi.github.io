@@ -67,6 +67,27 @@
     align-items:center;
     gap:8px;
   }
+  .back-link{
+    max-width:1120px;
+    margin:14px auto 0;
+    padding:0 24px;
+    display:flex;
+  }
+  .back-link a{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:'IBM Plex Sans';
+    font-size:13px;
+    font-weight:500;
+    color:var(--ink-soft);
+    text-decoration:none;
+    padding:6px 10px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--card);
+  }
+  .back-link a:hover{color:var(--ink); border-color:var(--ink-soft);}
   .conn-dot{
     width:7px; height:7px; border-radius:50%;
     background:var(--neutral);
@@ -488,6 +509,9 @@
 </head>
 <body>
 
+<div class="back-link">
+  <a href="index.html">← Volver al portal</a>
+</div>
 <div class="letterhead">
   <div class="letterhead-inner">
     <div class="lh-title-block">
