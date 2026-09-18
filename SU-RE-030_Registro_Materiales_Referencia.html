@@ -324,6 +324,7 @@
     background:#fff;
   }
   .form-grid textarea{resize:vertical;}
+  .form-grid input:disabled{background:var(--neutral-bg); color:var(--ink-soft);}
   .modal-err{color:var(--vencido); font-size:13px; margin-top:10px; display:none;}
   .modal-foot{
     display:flex; justify-content:flex-end; gap:10px;
@@ -390,6 +391,8 @@
   .action-btn.baja:hover{background:var(--vencido-bg);}
   .action-btn.reactivar{color:var(--vigente); border-color:var(--vigente);}
   .action-btn.reactivar:hover{background:var(--vigente-bg);}
+  .action-btn.editar{color:var(--accent); border-color:var(--accent);}
+  .action-btn.editar:hover{background:var(--accent-soft);}
   .action-btn:disabled{opacity:.5; cursor:default;}
   .baja-info{
     font-size:12.5px;
@@ -720,8 +723,12 @@ const ESTADO_ORDER = { "VENCIDO":0, "POR VENCER":1, "VIGENTE":2, "SIN DATOS":3, 
 const LIMITE_POR_VENCER = 60; // días
 const CONFIG_KEY = "sumi_su_re_030_apiurl_v1";
 
+// URL fija de la Web App de Apps Script — ya no hace falta que cada usuario la pegue.
+// Si el día de mañana volvés a implementar y cambia la URL, actualizala acá.
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxibUW1TQNwnzJLmgQM86g5Zy0gXQQD1AmRqfpWY7TftMtC1OhDmU6Mc0ZoQ5fAqrsmDQ/exec";
+
 let DATA = [];
-let API_URL = localStorage.getItem(CONFIG_KEY) || "";
+let API_URL = localStorage.getItem(CONFIG_KEY) || DEFAULT_API_URL;
 
 function parseISO(s){
   if(!s) return null;
@@ -911,43 +918,70 @@ function setupFiltersOnce(){
   });
   document.querySelector('.tab-btn[data-tab="activos"]').classList.add("active");
 
-  // ---------- nuevo registro ----------
+  // ---------- nuevo registro / editar ----------
   const overlay = document.getElementById("new-modal-overlay");
   const openBtn = document.getElementById("open-new");
   const closeBtn = document.getElementById("close-new");
   const cancelBtn = document.getElementById("cancel-new");
   const submitBtn = document.getElementById("submit-new");
   const newErr = document.getElementById("new-err");
+  const modalTitle = document.querySelector("#new-modal-overlay .modal-head h2");
 
-  function openModal(){
-    ["f-codigo","f-nombre","f-equipo","f-serie","f-marca","f-presentacion","f-certificado",
-     "f-fecha-recepcion","f-vencimiento","f-alcance","f-observacion"].forEach(id => document.getElementById(id).value = "");
-    document.getElementById("f-new-tipo").value = "Equipo de Referencia";
-    document.getElementById("f-ubicacion-new").value = "Gaveta";
+  function fillForm(item){
+    document.getElementById("f-codigo").value = item ? item.codigo : "";
+    document.getElementById("f-nombre").value = item ? item.nombre : "";
+    document.getElementById("f-new-tipo").value = item ? (item.tipo || "Equipo de Referencia") : "Equipo de Referencia";
+    document.getElementById("f-equipo").value = item ? (item.equipo || "") : "";
+    document.getElementById("f-serie").value = item ? (item.serie_lote || "") : "";
+    document.getElementById("f-marca").value = item ? (item.marca || "") : "";
+    document.getElementById("f-presentacion").value = item ? (item.presentacion || "") : "";
+    document.getElementById("f-certificado").value = item ? (item.certificado || "") : "";
+    document.getElementById("f-fecha-recepcion").value = item && item.fecha_recepcion ? String(item.fecha_recepcion).slice(0,10) : "";
+    document.getElementById("f-vencimiento").value = item && item.vencimiento ? String(item.vencimiento).slice(0,10) : "";
+    document.getElementById("f-alcance").value = item ? (item.alcance || "") : "";
+    document.getElementById("f-ubicacion-new").value = item ? (item.ubicacion || "Gaveta") : "Gaveta";
+    document.getElementById("f-observacion").value = item ? (item.observacion || "") : "";
+  }
+
+  window.editingItem = null;
+  window.openNewModal = function(){
+    window.editingItem = null;
+    modalTitle.textContent = "Nuevo registro";
+    submitBtn.textContent = "Guardar registro";
+    document.getElementById("f-codigo").disabled = false;
+    fillForm(null);
     newErr.style.display = "none";
     overlay.classList.add("open");
-  }
+  };
+  window.openEditModal = function(item){
+    window.editingItem = item;
+    modalTitle.textContent = "Editar registro — " + item.codigo;
+    submitBtn.textContent = "Guardar cambios";
+    document.getElementById("f-codigo").disabled = true; // el código identifica la fila, no se cambia acá
+    fillForm(item);
+    newErr.style.display = "none";
+    overlay.classList.add("open");
+  };
   function closeModal(){ overlay.classList.remove("open"); }
 
-  openBtn.addEventListener("click", openModal);
+  openBtn.addEventListener("click", window.openNewModal);
   closeBtn.addEventListener("click", closeModal);
   cancelBtn.addEventListener("click", closeModal);
   overlay.addEventListener("click", e => { if(e.target === overlay) closeModal(); });
 
   submitBtn.addEventListener("click", async () => {
-    const codigo = document.getElementById("f-codigo").value.trim();
+    const isEdit = !!window.editingItem;
+    const codigo = isEdit ? window.editingItem.codigo : document.getElementById("f-codigo").value.trim();
     const nombre = document.getElementById("f-nombre").value.trim();
     if(!codigo || !nombre){
       newErr.textContent = "Código y Nombre son obligatorios.";
       newErr.style.display = "block";
       return;
     }
-    const nextN = DATA.reduce((max, d) => Math.max(max, Number(d.n) || 0), 0) + 1;
+    const n = isEdit ? window.editingItem.n : (DATA.reduce((max, d) => Math.max(max, Number(d.n) || 0), 0) + 1);
     const payload = {
-      action: "agregar",
-      n: nextN,
-      codigo,
-      nombre,
+      action: isEdit ? "editar" : "agregar",
+      n, codigo, nombre,
       tipo: document.getElementById("f-new-tipo").value,
       equipo: document.getElementById("f-equipo").value.trim(),
       serie_lote: document.getElementById("f-serie").value.trim(),
@@ -971,7 +1005,7 @@ function setupFiltersOnce(){
       newErr.style.display = "block";
     }
     submitBtn.disabled = false;
-    submitBtn.textContent = "Guardar registro";
+    submitBtn.textContent = isEdit ? "Guardar cambios" : "Guardar registro";
   });
 }
 function syncActiveStat(){
@@ -1057,14 +1091,14 @@ const emptyEl = document.getElementById("empty");
 const countEl = document.getElementById("result-count");
 
 function renderDetail(item){
-  const actions = item.baja
-    ? `<div class="detail-actions">
-         <span class="baja-info">Dado de baja el <b>${fmtDate(item.fecha_baja)}</b>${item.motivo_baja ? " — " + item.motivo_baja : ""}</span>
-         <button class="action-btn reactivar" data-action="reactivar" data-codigo="${item.codigo}" data-n="${item.n}">Reactivar</button>
-       </div>`
-    : `<div class="detail-actions">
-         <button class="action-btn baja" data-action="baja" data-codigo="${item.codigo}" data-n="${item.n}">Dar de baja (obsoleto)</button>
-       </div>`;
+  const bajaBtn = item.baja
+    ? `<span class="baja-info">Dado de baja el <b>${fmtDate(item.fecha_baja)}</b>${item.motivo_baja ? " — " + item.motivo_baja : ""}</span>
+       <button class="action-btn reactivar" data-action="reactivar" data-codigo="${item.codigo}" data-n="${item.n}">Reactivar</button>`
+    : `<button class="action-btn baja" data-action="baja" data-codigo="${item.codigo}" data-n="${item.n}">Dar de baja (obsoleto)</button>`;
+  const actions = `<div class="detail-actions">
+      <button class="action-btn editar" data-action="editar" data-codigo="${item.codigo}" data-n="${item.n}">Editar</button>
+      ${bajaBtn}
+    </div>`;
   return `
     <div class="detail-grid">
       <div class="detail-field"><div class="k">N° serie / lote</div><div class="v mono">${item.serie_lote || "—"}</div></div>
@@ -1141,6 +1175,10 @@ function render(){
         const codigo = btn.dataset.codigo, n = btn.dataset.n;
         const item = DATA.find(d => d.codigo === codigo && String(d.n) === String(n));
         if(!item) return;
+        if(btn.dataset.action === "editar"){
+          window.openEditModal(item);
+          return;
+        }
         btn.disabled = true;
         btn.textContent = "Guardando…";
         try{
