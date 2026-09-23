@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pendientes SUMI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --text:#e2e8f0; --muted:#94a3b8;
+    --border:#334155; --accent:#38bdf8;
+    --realizado:#4ade80; --pendiente:#64748b; --enviado:#facc15; --confirmado:#22d3ee;
+    --alerta:#fb923c; --licitacion:#e879f9; --otro:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:16px 20px;background:var(--panel);border-bottom:1px solid var(--border);
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  h1{font-size:18px;margin:0}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  select,input{background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:8px 10px;font-size:14px}
+  button{cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    border-radius:8px;padding:8px 14px;font-size:14px}
+  button.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+  main{padding:16px 20px}
+  #status{color:var(--muted);font-size:13px;margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:14px}
+  th{background:var(--panel2);color:var(--muted);font-weight:600;position:sticky;top:64px}
+  tr:hover td{background:#25324a}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:#0f172a}
+  .wrap{overflow-x:auto}
+
+  /* Modo TV */
+  body.tv header .controls > *:not(#btnTv){display:none}
+  body.tv main{padding:24px 32px}
+  body.tv h1{font-size:26px}
+  body.tv table{font-size:22px}
+  body.tv th,body.tv td{padding:16px 18px}
+  body.tv #status{font-size:16px}
+  body.tv .badge{font-size:16px;padding:5px 14px}
+  body.tv #weekNav{display:flex}
+  #weekNav{display:none;gap:10px;align-items:center}
+
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){--bg:#f8fafc;--panel:#ffffff;--panel2:#f1f5f9;--text:#0f172a;--muted:#64748b;--border:#e2e8f0}
+    tr:hover td{background:#eef2f7}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>📋 Pendientes SUMI — Técnicos</h1>
+  <div class="controls">
+    <div id="weekNav">
+      <button id="prevWeek">◀ Semana</button>
+      <span id="weekLabel" style="color:var(--muted);font-size:14px"></span>
+      <button id="nextWeek">Semana ▶</button>
+    </div>
+    <select id="fTecnico"><option value="">Todos los técnicos</option></select>
+    <select id="fEstado"><option value="">Todos los estados</option></select>
+    <input id="fCliente" type="text" placeholder="Buscar cliente...">
+    <button id="btnTv">🖥️ Modo TV (semana)</button>
+    <button id="btnRefresh" class="primary">↻ Actualizar</button>
+  </div>
+</header>
+<main>
+  <div id="status">Cargando datos…</div>
+  <div class="wrap">
+    <table id="tbl">
+      <thead>
+        <tr><th>Cliente</th><th>Servicio</th><th>Equipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th><th>Observación</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+/* =======================================================================
+   CONFIGURACIÓN: pegá acá el link de tu Google Sheet publicado como CSV.
+   En Sheets: Archivo > Compartir > Publicar en la web > elegí la pestaña
+   Pendientes-26 > formato CSV > Publicar. Pegá esa URL abajo.
+   La hoja debe tener columnas: Cliente, Servicio, Equipo, Fecha, Tecnico,
+   Tecnico2, Presupuesto, Estado, Observacion  (ver pendientes_export.csv
+   como plantilla de columnas para importar tus datos actuales).
+   ======================================================================= */
+const SHEET_CSV_URL = "PEGA_AQUI_TU_URL_CSV_PUBLICADA";
+const REFRESH_MS = 5 * 60 * 1000; // auto-actualiza cada 5 min en modo TV
+
+const ESTADO_COLOR = {
+  REALIZADO:'var(--realizado)', PENDIENTE:'var(--pendiente)', ENVIADO:'var(--enviado)',
+  CONFIRMADO:'var(--confirmado)', ALERTA:'var(--alerta)', LICITACION:'var(--licitacion)'
+};
+
+let allRows = [];
+let tvWeekOffset = 0;
+
+/* Mapea las variantes de escritura al nombre canónico "Nombre + inicial de apellido" */
+const TECNICO_MAP = {
+  'fernando':'Fernando B.',
+  'jaime':'Jaime C.',
+  'junior':'Junior G.',
+  'jose':'Jose B.',
+  'zulma':'Zulma B.',
+  'adan':'Adan C.',
+  'claudio':'Claudio G.',
+  'sebastian':'Sebastian A.', 'sebas':'Sebastian A.',
+  'josias':'Josias B.',
+  'veronica':'Veronica D.',
+  'carlos noguera':'Carlos N.', 'carlos n':'Carlos N.', 'c noguera':'Carlos N.',
+  'carlos fernandez':'Carlos F.', 'carlos f':'Carlos F.'
+  // "carlos" a secas queda sin mapear (ambiguo entre Carlos F. y Carlos N.):
+  // conviene corregirlo directamente en la planilla cuando se detecte.
+};
+function canonicalTecnico(raw){
+  const key = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\./g,'').trim();
+  return TECNICO_MAP[key] || raw.trim();
+}
+function normTecnicos(cell){
+  if(!cell) return [];
+  return cell.split(/[\/,]| y /i).map(s=>s.trim()).filter(Boolean).map(canonicalTecnico);
+}
+
+function parseFecha(s){
+  if(!s) return null;
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function loadData(){
+  document.getElementById('status').textContent = 'Cargando datos…';
+  Papa.parse(SHEET_CSV_URL, {
+    download: true, header: true, skipEmptyLines: true,
+    complete: res => {
+      allRows = res.data.filter(r => r.Cliente);
+      populateFilters();
+      render();
+      document.getElementById('status').textContent =
+        `${allRows.length} tareas cargadas — actualizado ${new Date().toLocaleTimeString('es-PY')}`;
+    },
+    error: err => {
+      document.getElementById('status').textContent =
+        '⚠️ No se pudo cargar la planilla. Revisá el link de Google Sheets en la configuración del archivo.';
+    }
+  });
+}
+
+function populateFilters(){
+  const tecSel = document.getElementById('fTecnico');
+  const estSel = document.getElementById('fEstado');
+  const tecs = new Set(), ests = new Set();
+  allRows.forEach(r=>{
+    normTecnicos(r.Tecnico).forEach(t=>tecs.add(t));
+    normTecnicos(r.Tecnico2).forEach(t=>tecs.add(t));
+    if(r.Estado) ests.add(r.Estado.trim().toUpperCase());
+  });
+  tecSel.innerHTML = '<option value="">Todos los técnicos</option>' +
+    [...tecs].sort().map(t=>`<option value="${t}">${t}</option>`).join('');
+  estSel.innerHTML = '<option value="">Todos los estados</option>' +
+    [...ests].sort().map(e=>`<option value="${e}">${e}</option>`).join('');
+}
+
+function getWeekRange(offset){
+  const now = new Date();
+  const day = now.getDay(); // 0=domingo
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now); monday.setDate(now.getDate() + diffToMonday + offset*7);
+  monday.setHours(0,0,0,0);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6); sunday.setHours(23,59,59,999);
+  return [monday, sunday];
+}
+
+function render(){
+  const isTv = document.body.classList.contains('tv');
+  const tecFilter = document.getElementById('fTecnico').value;
+  const estFilter = document.getElementById('fEstado').value;
+  const cliFilter = document.getElementById('fCliente').value.trim().toLowerCase();
+
+  let rows = allRows;
+
+  if(isTv){
+    const [mon, sun] = getWeekRange(tvWeekOffset);
+    document.getElementById('weekLabel').textContent =
+      `${mon.toLocaleDateString('es-PY')} — ${sun.toLocaleDateString('es-PY')}`;
+    rows = rows.filter(r=>{
+      const d = parseFecha(r.Fecha);
+      return d && d >= mon && d <= sun;
+    });
+  }
+
+  rows = rows.filter(r=>{
+    if(tecFilter && ![...normTecnicos(r.Tecnico), ...normTecnicos(r.Tecnico2)].includes(tecFilter)) return false;
+    if(estFilter && (r.Estado||'').trim().toUpperCase() !== estFilter) return false;
+    if(cliFilter && !(r.Cliente||'').toLowerCase().includes(cliFilter)) return false;
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    const da = parseFecha(a.Fecha), db = parseFecha(b.Fecha);
+    return (da?.getTime()||0) - (db?.getTime()||0);
+  });
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = rows.map(r=>{
+    const estado = (r.Estado||'PENDIENTE').trim().toUpperCase();
+    const color = ESTADO_COLOR[estado] || 'var(--otro)';
+    const fecha = parseFecha(r.Fecha);
+    const fechaStr = fecha ? fecha.toLocaleDateString('es-PY') : (r.Fecha||'');
+    const tecs = [...normTecnicos(r.Tecnico), ...normTecnicos(r.Tecnico2)].join(', ');
+    return `<tr>
+      <td>${r.Cliente||''}</td>
+      <td>${r.Servicio||''}</td>
+      <td>${r.Equipo||''}</td>
+      <td>${fechaStr}</td>
+      <td>${tecs}</td>
+      <td><span class="badge" style="background:${color}">${estado}</span></td>
+      <td>${r.Observacion||''}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">Sin resultados</td></tr>`;
+}
+
+document.getElementById('fTecnico').addEventListener('change', render);
+document.getElementById('fEstado').addEventListener('change', render);
+document.getElementById('fCliente').addEventListener('input', render);
+document.getElementById('btnRefresh').addEventListener('click', loadData);
+document.getElementById('prevWeek').addEventListener('click', ()=>{ tvWeekOffset--; render(); });
+document.getElementById('nextWeek').addEventListener('click', ()=>{ tvWeekOffset++; render(); });
+document.getElementById('btnTv').addEventListener('click', ()=>{
+  document.body.classList.toggle('tv');
+  tvWeekOffset = 0;
+  render();
+});
+
+loadData();
+setInterval(()=>{ if(document.body.classList.contains('tv')) loadData(); }, REFRESH_MS);
+</script>
+</body>
+</html>
