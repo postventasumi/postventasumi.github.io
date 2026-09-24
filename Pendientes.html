@@ -27,8 +27,19 @@
   #status{color:var(--muted);font-size:13px;margin-bottom:10px}
   table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:14px}
-  th{background:var(--panel2);color:var(--muted);font-weight:600;position:sticky;top:64px}
+  th{background:var(--panel2);color:var(--muted);font-weight:600}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable .arrow{opacity:.4;font-size:11px;margin-left:4px}
+  th.sortable.active .arrow{opacity:1;color:var(--accent)}
   tr:hover td{background:#25324a}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .tabs{display:flex;gap:4px;padding:10px 20px 0;background:var(--bg)}
+  .tab{background:transparent;border:1px solid var(--border);border-bottom:none;
+    border-radius:8px 8px 0 0;padding:8px 16px;color:var(--muted)}
+  .tab.active{background:var(--panel);color:var(--text);font-weight:600;border-color:var(--border)}
+  .tab .count{color:var(--muted);font-weight:400;font-size:12px}
+  .tab.active .count{color:var(--accent)}
+  body.tv .tabs{display:none}
   tr.row-clickable{cursor:pointer}
   .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:#0f172a}
   .wrap{overflow-x:auto}
@@ -99,12 +110,21 @@
     <button id="btnRefresh">↻ Actualizar</button>
   </div>
 </header>
+<div class="tabs">
+  <button class="tab active" id="tabPend">🕓 Pendientes <span id="countPend" class="count"></span></button>
+  <button class="tab" id="tabDone">✅ Realizados <span id="countDone" class="count"></span></button>
+</div>
 <main>
   <div id="status">Cargando datos…</div>
   <div class="wrap">
     <table id="tbl">
       <thead>
-        <tr><th>Cliente</th><th>Servicio</th><th>Equipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th><th>Observación</th><th></th></tr>
+        <tr>
+          <th class="sortable" data-sort="Cliente">Cliente <span class="arrow">▲</span></th>
+          <th>Servicio</th><th>Equipo</th>
+          <th class="sortable" data-sort="Fecha">Fecha <span class="arrow">▲</span></th>
+          <th>Técnico</th><th>Estado</th><th>Observación</th><th></th>
+        </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -141,7 +161,7 @@
 /* =======================================================================
    CONFIGURACIÓN: pegá acá la URL de tu Apps Script Web App (Code.gs)
    ======================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbzct5WchWrAe3_JKfEzk5P8PVBejoGSXrN4_-EthTNNUX3_QFiNVt6pmygnmvD8SvWj/exec";
+const API_URL = "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT";
 const REFRESH_MS = 5 * 60 * 1000;
 
 const TECNICOS = ['Fernando B.','Carlos F.','Carlos N.','Claudio G.','Jaime C.',
@@ -155,6 +175,9 @@ const ESTADO_COLOR = {
 let allRows = [];
 let tvWeekOffset = 0;
 let editingRow = null; // _row del sheet que se está editando, null = nueva
+let sortCol = 'Fecha';
+let sortDir = 'asc'; // 'asc' = más viejo a más nuevo, 'desc' = más nuevo a más viejo
+let viewTab = 'pendientes'; // 'pendientes' | 'realizados'
 
 /* ---------- Login ---------- */
 function checkLogin(){
@@ -240,6 +263,11 @@ function render(){
 
   let rows = allRows;
 
+  const isDone = r => (r.Estado||'').toString().trim().toUpperCase() === 'REALIZADO';
+  document.getElementById('countPend').textContent = '(' + allRows.filter(r=>!isDone(r)).length + ')';
+  document.getElementById('countDone').textContent = '(' + allRows.filter(isDone).length + ')';
+  rows = rows.filter(r => viewTab === 'realizados' ? isDone(r) : !isDone(r));
+
   if(isTv){
     const [mon, sun] = getWeekRange(tvWeekOffset);
     document.getElementById('weekLabel').textContent =
@@ -254,9 +282,19 @@ function render(){
     return true;
   });
 
+  const mult = sortDir === 'asc' ? 1 : -1;
   rows.sort((a,b)=>{
-    const da = parseFecha(a.Fecha), db = parseFecha(b.Fecha);
-    return (da?.getTime()||0) - (db?.getTime()||0);
+    let va, vb;
+    if(sortCol === 'Fecha'){
+      va = parseFecha(a.Fecha)?.getTime() || 0;
+      vb = parseFecha(b.Fecha)?.getTime() || 0;
+    } else {
+      va = (a[sortCol]||'').toString().toLowerCase();
+      vb = (b[sortCol]||'').toString().toLowerCase();
+    }
+    if(va < vb) return -1*mult;
+    if(va > vb) return 1*mult;
+    return 0;
   });
 
   const tbody = document.getElementById('tbody');
@@ -277,11 +315,17 @@ function render(){
       <td>${r.Observacion||''}</td>
       <td>
         <div class="rowactions">
-          <button data-quickdone="${r._row}" ${done?'disabled':''}>✓ Hecho</button>
+          <button data-quickdone="${r._row}" ${done?'disabled':''}>${done?'✓ Realizado':'Marcar hecho'}</button>
         </div>
       </td>
     </tr>`;
   }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sin resultados</td></tr>`;
+
+  document.querySelectorAll('th.sortable').forEach(th=>{
+    const isActive = th.dataset.sort === sortCol;
+    th.classList.toggle('active', isActive);
+    th.querySelector('.arrow').textContent = (isActive && sortDir==='desc') ? '▼' : '▲';
+  });
 
   tbody.querySelectorAll('tr[data-row]').forEach(tr=>{
     tr.addEventListener('click', (ev)=>{
@@ -298,7 +342,10 @@ function render(){
 }
 
 function quickMarkDone(rowNum){
-  writeAction({ action:'update', row: rowNum, data:{ Estado:'REALIZADO' } }).then(()=>loadData());
+  writeAction({ action:'update', row: rowNum, data:{ Estado:'REALIZADO' } }).then(res=>{
+    if(res.ok) loadData();
+    else alert('No se pudo marcar como hecho: ' + (res.error||'sin conexión'));
+  });
 }
 
 /* ---------- Modal alta/edición ---------- */
@@ -379,9 +426,31 @@ document.getElementById('fCliente').addEventListener('input', render);
 document.getElementById('btnRefresh').addEventListener('click', loadData);
 document.getElementById('prevWeek').addEventListener('click', ()=>{ tvWeekOffset--; render(); });
 document.getElementById('nextWeek').addEventListener('click', ()=>{ tvWeekOffset++; render(); });
+document.querySelectorAll('th.sortable').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    if(sortCol === th.dataset.sort){ sortDir = sortDir==='asc' ? 'desc' : 'asc'; }
+    else { sortCol = th.dataset.sort; sortDir = 'asc'; }
+    render();
+  });
+});
+document.getElementById('tabPend').addEventListener('click', ()=>{
+  viewTab = 'pendientes';
+  document.getElementById('tabPend').classList.add('active');
+  document.getElementById('tabDone').classList.remove('active');
+  render();
+});
+document.getElementById('tabDone').addEventListener('click', ()=>{
+  viewTab = 'realizados';
+  document.getElementById('tabDone').classList.add('active');
+  document.getElementById('tabPend').classList.remove('active');
+  render();
+});
 document.getElementById('btnTv').addEventListener('click', ()=>{
   document.body.classList.toggle('tv');
   tvWeekOffset = 0;
+  viewTab = 'pendientes';
+  document.getElementById('tabPend').classList.add('active');
+  document.getElementById('tabDone').classList.remove('active');
   render();
 });
 
