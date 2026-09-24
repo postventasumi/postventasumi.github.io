@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pendientes SUMI</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --text:#e2e8f0; --muted:#94a3b8;
@@ -18,19 +17,41 @@
     display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
   h1{font-size:18px;margin:0}
   .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-  select,input{background:var(--panel2);color:var(--text);border:1px solid var(--border);
-    border-radius:8px;padding:8px 10px;font-size:14px}
+  select,input,textarea{background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit}
   button{cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);
     border-radius:8px;padding:8px 14px;font-size:14px}
   button.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+  button.danger{background:#7f1d1d;border-color:#7f1d1d;color:#fecaca}
   main{padding:16px 20px}
   #status{color:var(--muted);font-size:13px;margin-bottom:10px}
   table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:14px}
   th{background:var(--panel2);color:var(--muted);font-weight:600;position:sticky;top:64px}
   tr:hover td{background:#25324a}
+  tr.row-clickable{cursor:pointer}
   .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:#0f172a}
   .wrap{overflow-x:auto}
+  .rowactions{display:flex;gap:6px}
+  .rowactions button{padding:4px 8px;font-size:12px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;
+    width:100%;max-width:480px;max-height:90vh;overflow:auto}
+  .modal h2{margin-top:0;font-size:17px}
+  .field{margin-bottom:12px;display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:12px;color:var(--muted)}
+  .field select,.field input,.field textarea{width:100%}
+  .modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+  .modal-actions .right{display:flex;gap:8px}
+
+  /* Login gate */
+  #loginGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50}
+  #loginGate .box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:320px;text-align:center}
+  #loginGate input{width:100%;margin:12px 0;text-align:center}
+  #loginErr{color:#fb923c;font-size:13px;min-height:18px}
 
   /* Modo TV */
   body.tv header .controls > *:not(#btnTv){display:none}
@@ -38,6 +59,7 @@
   body.tv h1{font-size:26px}
   body.tv table{font-size:22px}
   body.tv th,body.tv td{padding:16px 18px}
+  body.tv .rowactions,body.tv th:last-child,body.tv td:last-child{display:none}
   body.tv #status{font-size:16px}
   body.tv .badge{font-size:16px;padding:5px 14px}
   body.tv #weekNav{display:flex}
@@ -50,6 +72,17 @@
 </style>
 </head>
 <body>
+
+<div id="loginGate">
+  <div class="box">
+    <h2>🔒 Pendientes SUMI</h2>
+    <p style="color:var(--muted);font-size:14px">Ingresá la clave del equipo</p>
+    <input id="loginPass" type="password" placeholder="Clave">
+    <button class="primary" id="loginBtn" style="width:100%">Entrar</button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
 <header>
   <h1>📋 Pendientes SUMI — Técnicos</h1>
   <div class="controls">
@@ -61,8 +94,9 @@
     <select id="fTecnico"><option value="">Todos los técnicos</option></select>
     <select id="fEstado"><option value="">Todos los estados</option></select>
     <input id="fCliente" type="text" placeholder="Buscar cliente...">
+    <button id="btnNueva" class="primary">+ Nueva tarea</button>
     <button id="btnTv">🖥️ Modo TV (semana)</button>
-    <button id="btnRefresh" class="primary">↻ Actualizar</button>
+    <button id="btnRefresh">↻ Actualizar</button>
   </div>
 </header>
 <main>
@@ -70,24 +104,48 @@
   <div class="wrap">
     <table id="tbl">
       <thead>
-        <tr><th>Cliente</th><th>Servicio</th><th>Equipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th><th>Observación</th></tr>
+        <tr><th>Cliente</th><th>Servicio</th><th>Equipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th><th>Observación</th><th></th></tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
   </div>
 </main>
 
+<div class="overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Nueva tarea</h2>
+    <div class="field"><label>Cliente</label><input id="mCliente"></div>
+    <div class="field"><label>Servicio</label><input id="mServicio"></div>
+    <div class="field"><label>Equipo</label><input id="mEquipo"></div>
+    <div class="field"><label>Fecha</label><input id="mFecha" type="date"></div>
+    <div class="field"><label>Técnico principal</label><select id="mTecnico"></select></div>
+    <div class="field"><label>Técnico secundario (opcional)</label><select id="mTecnico2"></select></div>
+    <div class="field"><label>Estado</label>
+      <select id="mEstado">
+        <option>PENDIENTE</option><option>ENVIADO</option><option>CONFIRMADO</option>
+        <option>ALERTA</option><option>LICITACION</option><option>REALIZADO</option>
+      </select>
+    </div>
+    <div class="field"><label>Observación</label><textarea id="mObs" rows="3"></textarea></div>
+    <div class="modal-actions">
+      <button class="danger" id="mDelete" style="display:none">Eliminar</button>
+      <div class="right">
+        <button id="mCancel">Cancelar</button>
+        <button class="primary" id="mSave">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =======================================================================
-   CONFIGURACIÓN: pegá acá el link de tu Google Sheet publicado como CSV.
-   En Sheets: Archivo > Compartir > Publicar en la web > elegí la pestaña
-   Pendientes-26 > formato CSV > Publicar. Pegá esa URL abajo.
-   La hoja debe tener columnas: Cliente, Servicio, Equipo, Fecha, Tecnico,
-   Tecnico2, Presupuesto, Estado, Observacion  (ver pendientes_export.csv
-   como plantilla de columnas para importar tus datos actuales).
+   CONFIGURACIÓN: pegá acá la URL de tu Apps Script Web App (Code.gs)
    ======================================================================= */
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSIbhBmr9J5AARXUIBc5PwCEdsVHU-jlJwHixLAq0jH_QetVEk3bi4K4G1o56CL2DaQpn8nzJrQ5STt/pub?gid=1780030690&single=true&output=csv";
-const REFRESH_MS = 5 * 60 * 1000; // auto-actualiza cada 5 min en modo TV
+const API_URL = "https://script.google.com/macros/s/AKfycbzct5WchWrAe3_JKfEzk5P8PVBejoGSXrN4_-EthTNNUX3_QFiNVt6pmygnmvD8SvWj/exec";
+const REFRESH_MS = 5 * 60 * 1000;
+
+const TECNICOS = ['Fernando B.','Carlos F.','Carlos N.','Claudio G.','Jaime C.',
+  'Sebastian A.','Jose B.','Adan C.','Josias B.','Zulma B.','Veronica D.','Junior G.'];
 
 const ESTADO_COLOR = {
   REALIZADO:'var(--realizado)', PENDIENTE:'var(--pendiente)', ENVIADO:'var(--enviado)',
@@ -96,56 +154,56 @@ const ESTADO_COLOR = {
 
 let allRows = [];
 let tvWeekOffset = 0;
+let editingRow = null; // _row del sheet que se está editando, null = nueva
 
-/* Mapea las variantes de escritura al nombre canónico "Nombre + inicial de apellido" */
-const TECNICO_MAP = {
-  'fernando':'Fernando B.',
-  'jaime':'Jaime C.',
-  'junior':'Junior G.',
-  'jose':'Jose B.',
-  'zulma':'Zulma B.',
-  'adan':'Adan C.',
-  'claudio':'Claudio G.',
-  'sebastian':'Sebastian A.', 'sebas':'Sebastian A.',
-  'josias':'Josias B.',
-  'veronica':'Veronica D.',
-  'carlos noguera':'Carlos N.', 'carlos n':'Carlos N.', 'c noguera':'Carlos N.',
-  'carlos fernandez':'Carlos F.', 'carlos f':'Carlos F.'
-  // "carlos" a secas queda sin mapear (ambiguo entre Carlos F. y Carlos N.):
-  // conviene corregirlo directamente en la planilla cuando se detecte.
-};
-function canonicalTecnico(raw){
-  const key = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/\./g,'').trim();
-  return TECNICO_MAP[key] || raw.trim();
+/* ---------- Login ---------- */
+function checkLogin(){
+  const saved = localStorage.getItem('pendientes_pass');
+  if(saved){ document.getElementById('loginGate').style.display='none'; loadData(); }
 }
+document.getElementById('loginBtn').addEventListener('click', ()=>{
+  const p = document.getElementById('loginPass').value.trim();
+  if(!p){ document.getElementById('loginErr').textContent='Ingresá una clave'; return; }
+  localStorage.setItem('pendientes_pass', p);
+  document.getElementById('loginGate').style.display='none';
+  document.getElementById('loginErr').textContent='';
+  loadData();
+});
+function getPass(){ return localStorage.getItem('pendientes_pass') || ''; }
+
+/* ---------- Utilidades ---------- */
 function normTecnicos(cell){
   if(!cell) return [];
-  return cell.split(/[\/,]| y /i).map(s=>s.trim()).filter(Boolean).map(canonicalTecnico);
+  return cell.split(/[\/,]| y /i).map(s=>s.trim()).filter(Boolean);
 }
-
 function parseFecha(s){
   if(!s) return null;
   const d = new Date(s);
   return isNaN(d) ? null : d;
 }
+function fillSelect(sel, extra){
+  sel.innerHTML = (extra?`<option value="">${extra}</option>`:'') +
+    TECNICOS.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+fillSelect(document.getElementById('mTecnico'));
+fillSelect(document.getElementById('mTecnico2'), '(ninguno)');
 
+/* ---------- Cargar datos ---------- */
 function loadData(){
   document.getElementById('status').textContent = 'Cargando datos…';
-  Papa.parse(SHEET_CSV_URL, {
-    download: true, header: true, skipEmptyLines: true,
-    complete: res => {
-      allRows = res.data.filter(r => r.Cliente);
+  fetch(API_URL)
+    .then(r=>r.json())
+    .then(data=>{
+      allRows = data;
       populateFilters();
       render();
       document.getElementById('status').textContent =
-        `${allRows.length} tareas cargadas — actualizado ${new Date().toLocaleTimeString('es-PY')}`;
-    },
-    error: err => {
+        `${allRows.length} tareas — actualizado ${new Date().toLocaleTimeString('es-PY')}`;
+    })
+    .catch(()=>{
       document.getElementById('status').textContent =
-        '⚠️ No se pudo cargar la planilla. Revisá el link de Google Sheets en la configuración del archivo.';
-    }
-  });
+        '⚠️ No se pudo conectar con la planilla. Revisá API_URL en el archivo.';
+    });
 }
 
 function populateFilters(){
@@ -155,7 +213,7 @@ function populateFilters(){
   allRows.forEach(r=>{
     normTecnicos(r.Tecnico).forEach(t=>tecs.add(t));
     normTecnicos(r.Tecnico2).forEach(t=>tecs.add(t));
-    if(r.Estado) ests.add(r.Estado.trim().toUpperCase());
+    if(r.Estado) ests.add(String(r.Estado).trim().toUpperCase());
   });
   tecSel.innerHTML = '<option value="">Todos los técnicos</option>' +
     [...tecs].sort().map(t=>`<option value="${t}">${t}</option>`).join('');
@@ -165,7 +223,7 @@ function populateFilters(){
 
 function getWeekRange(offset){
   const now = new Date();
-  const day = now.getDay(); // 0=domingo
+  const day = now.getDay();
   const diffToMonday = (day === 0 ? -6 : 1 - day);
   const monday = new Date(now); monday.setDate(now.getDate() + diffToMonday + offset*7);
   monday.setHours(0,0,0,0);
@@ -173,6 +231,7 @@ function getWeekRange(offset){
   return [monday, sunday];
 }
 
+/* ---------- Render ---------- */
 function render(){
   const isTv = document.body.classList.contains('tv');
   const tecFilter = document.getElementById('fTecnico').value;
@@ -185,15 +244,12 @@ function render(){
     const [mon, sun] = getWeekRange(tvWeekOffset);
     document.getElementById('weekLabel').textContent =
       `${mon.toLocaleDateString('es-PY')} — ${sun.toLocaleDateString('es-PY')}`;
-    rows = rows.filter(r=>{
-      const d = parseFecha(r.Fecha);
-      return d && d >= mon && d <= sun;
-    });
+    rows = rows.filter(r=>{ const d = parseFecha(r.Fecha); return d && d >= mon && d <= sun; });
   }
 
   rows = rows.filter(r=>{
     if(tecFilter && ![...normTecnicos(r.Tecnico), ...normTecnicos(r.Tecnico2)].includes(tecFilter)) return false;
-    if(estFilter && (r.Estado||'').trim().toUpperCase() !== estFilter) return false;
+    if(estFilter && (r.Estado||'').toString().trim().toUpperCase() !== estFilter) return false;
     if(cliFilter && !(r.Cliente||'').toLowerCase().includes(cliFilter)) return false;
     return true;
   });
@@ -205,12 +261,13 @@ function render(){
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = rows.map(r=>{
-    const estado = (r.Estado||'PENDIENTE').trim().toUpperCase();
+    const estado = (r.Estado||'PENDIENTE').toString().trim().toUpperCase();
     const color = ESTADO_COLOR[estado] || 'var(--otro)';
     const fecha = parseFecha(r.Fecha);
     const fechaStr = fecha ? fecha.toLocaleDateString('es-PY') : (r.Fecha||'');
     const tecs = [...normTecnicos(r.Tecnico), ...normTecnicos(r.Tecnico2)].join(', ');
-    return `<tr>
+    const done = estado === 'REALIZADO';
+    return `<tr class="row-clickable" data-row="${r._row}">
       <td>${r.Cliente||''}</td>
       <td>${r.Servicio||''}</td>
       <td>${r.Equipo||''}</td>
@@ -218,10 +275,104 @@ function render(){
       <td>${tecs}</td>
       <td><span class="badge" style="background:${color}">${estado}</span></td>
       <td>${r.Observacion||''}</td>
+      <td>
+        <div class="rowactions">
+          <button data-quickdone="${r._row}" ${done?'disabled':''}>✓ Hecho</button>
+        </div>
+      </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">Sin resultados</td></tr>`;
+  }).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sin resultados</td></tr>`;
+
+  tbody.querySelectorAll('tr[data-row]').forEach(tr=>{
+    tr.addEventListener('click', (ev)=>{
+      if(ev.target.closest('button')) return;
+      openModal(Number(tr.dataset.row));
+    });
+  });
+  tbody.querySelectorAll('[data-quickdone]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      quickMarkDone(Number(btn.dataset.quickdone));
+    });
+  });
 }
 
+function quickMarkDone(rowNum){
+  writeAction({ action:'update', row: rowNum, data:{ Estado:'REALIZADO' } }).then(()=>loadData());
+}
+
+/* ---------- Modal alta/edición ---------- */
+function openModal(rowNum){
+  editingRow = rowNum || null;
+  const r = rowNum ? allRows.find(x=>x._row===rowNum) : null;
+  document.getElementById('modalTitle').textContent = r ? 'Editar tarea' : 'Nueva tarea';
+  document.getElementById('mCliente').value = r?.Cliente || '';
+  document.getElementById('mServicio').value = r?.Servicio || '';
+  document.getElementById('mEquipo').value = r?.Equipo || '';
+  const d = r ? parseFecha(r.Fecha) : null;
+  document.getElementById('mFecha').value = d ? d.toISOString().slice(0,10) : '';
+  document.getElementById('mTecnico').value = r?.Tecnico || '';
+  document.getElementById('mTecnico2').value = r?.Tecnico2 || '';
+  document.getElementById('mEstado').value = (r?.Estado || 'PENDIENTE').toString().toUpperCase();
+  document.getElementById('mObs').value = r?.Observacion || '';
+  document.getElementById('mDelete').style.display = r ? 'inline-block' : 'none';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+
+document.getElementById('btnNueva').addEventListener('click', ()=>openModal(null));
+document.getElementById('mCancel').addEventListener('click', closeModal);
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+
+document.getElementById('mSave').addEventListener('click', ()=>{
+  const data = {
+    Cliente: document.getElementById('mCliente').value.trim(),
+    Servicio: document.getElementById('mServicio').value.trim(),
+    Equipo: document.getElementById('mEquipo').value.trim(),
+    Fecha: document.getElementById('mFecha').value,
+    Tecnico: document.getElementById('mTecnico').value,
+    Tecnico2: document.getElementById('mTecnico2').value,
+    Estado: document.getElementById('mEstado').value,
+    Observacion: document.getElementById('mObs').value.trim()
+  };
+  if(!data.Cliente){ alert('El cliente es obligatorio'); return; }
+  const payload = editingRow
+    ? { action:'update', row: editingRow, data }
+    : { action:'add', data };
+  writeAction(payload).then(res=>{
+    if(res.ok){ closeModal(); loadData(); }
+    else alert('No se pudo guardar: ' + (res.error||''));
+  });
+});
+
+document.getElementById('mDelete').addEventListener('click', ()=>{
+  if(!editingRow) return;
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  writeAction({ action:'delete', row: editingRow }).then(res=>{
+    if(res.ok){ closeModal(); loadData(); }
+    else alert('No se pudo eliminar: ' + (res.error||''));
+  });
+});
+
+function writeAction(payload){
+  payload.password = getPass();
+  return fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight CORS
+    body: JSON.stringify(payload)
+  }).then(r=>r.json())
+    .then(res=>{
+      if(res.ok===false && res.error==='Clave incorrecta'){
+        localStorage.removeItem('pendientes_pass');
+        alert('Clave incorrecta. Volvé a ingresarla.');
+        location.reload();
+      }
+      return res;
+    })
+    .catch(()=>({ok:false, error:'Sin conexión'}));
+}
+
+/* ---------- Filtros / TV / eventos ---------- */
 document.getElementById('fTecnico').addEventListener('change', render);
 document.getElementById('fEstado').addEventListener('change', render);
 document.getElementById('fCliente').addEventListener('input', render);
@@ -234,7 +385,7 @@ document.getElementById('btnTv').addEventListener('click', ()=>{
   render();
 });
 
-loadData();
+checkLogin();
 setInterval(()=>{ if(document.body.classList.contains('tv')) loadData(); }, REFRESH_MS);
 </script>
 </body>
